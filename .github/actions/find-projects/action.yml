@@ -1,0 +1,34 @@
+name: Find projects
+description: Find Docker Buildx Bake projects.
+inputs:
+  ref:
+    description: the ref
+    required: true
+outputs:
+  projects:
+    description: projects
+    value: ${{ steps.convert-to-json.outputs.value }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.ref }}
+
+    - id: find-projects
+      run: |
+        projects="$(find . -maxdepth 2 -mindepth 2 -name 'docker-bake.hcl' -printf '%P\n' | cut -f1 -d '/')"
+        echo "${projects}"
+        echo 'value<<EOF' >> $GITHUB_OUTPUT
+        echo "${projects}" >> $GITHUB_OUTPUT
+        echo 'EOF' >> $GITHUB_OUTPUT
+      shell: /usr/bin/bash -euo pipefail {0}
+
+    - id: convert-to-json
+      run: |
+        json="$(echo '${{ steps.find-projects.outputs.value }}' | jq -R -s -c 'split("\n") | map(select(length > 0))')"
+        echo "${json}"
+        echo 'value<<EOF' >> $GITHUB_OUTPUT
+        echo "${json}" >> $GITHUB_OUTPUT
+        echo 'EOF' >> $GITHUB_OUTPUT
+      shell: /usr/bin/bash -euo pipefail {0}

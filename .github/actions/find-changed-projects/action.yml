@@ -1,0 +1,61 @@
+name: Find changed projects
+description: Find changed Docker Buildx Bake projects.
+inputs:
+  base_ref:
+    description: the base ref
+    required: true
+  new_ref:
+    description: the new ref
+    required: true
+outputs:
+  projects:
+    description: changed projects
+    value: ${{ steps.convert-to-json.outputs.value }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.base_ref }}
+
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.new_ref }}
+
+    - id: find-projects
+      run: |
+        projects="$(find . -maxdepth 2 -mindepth 2 -name 'docker-bake.hcl' -printf '%P\n' | cut -f1 -d '/')"
+        echo "${projects}"
+        echo 'value<<EOF' >> $GITHUB_OUTPUT
+        echo "${projects}" >> $GITHUB_OUTPUT
+        echo 'EOF' >> $GITHUB_OUTPUT
+      shell: /usr/bin/bash -euo pipefail {0}
+
+    - id: find-changed-directories
+      run: |
+        directories="$(git diff ${{ inputs.base_ref }}..${{ inputs.new_ref }} --name-only | cut -f1 -d '/' | sort | uniq)"
+        echo "${directories}"
+        echo 'value<<EOF' >> $GITHUB_OUTPUT
+        echo "${directories}" >> $GITHUB_OUTPUT
+        echo 'EOF' >> $GITHUB_OUTPUT
+      shell: /usr/bin/bash -euo pipefail {0}
+
+    - id: get-intersection
+      run: |
+        echo '${{ steps.find-projects.outputs.value }}' | sort > /tmp/projects
+        echo '${{ steps.find-changed-directories.outputs.value }}' | sort > /tmp/changed_directories
+        intersection="$(comm -12 /tmp/projects /tmp/changed_directories)"
+        echo "${intersection}"
+        echo 'value<<EOF' >> $GITHUB_OUTPUT
+        echo "${intersection}" >> $GITHUB_OUTPUT
+        echo 'EOF' >> $GITHUB_OUTPUT
+      shell: /usr/bin/bash -euo pipefail {0}
+
+    - id: convert-to-json
+      run: |
+        json="$(echo '${{ steps.get-intersection.outputs.value }}' | jq -R -s -c 'split("\n") | map(select(length > 0))')"
+        echo "${json}"
+        echo 'value<<EOF' >> $GITHUB_OUTPUT
+        echo "${json}" >> $GITHUB_OUTPUT
+        echo 'EOF' >> $GITHUB_OUTPUT
+      shell: /usr/bin/bash -euo pipefail {0}
