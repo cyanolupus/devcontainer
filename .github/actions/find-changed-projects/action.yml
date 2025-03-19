@@ -8,7 +8,10 @@ inputs:
     description: the new ref
     required: true
 outputs:
-  projects:
+  projects-text:
+    description: changed projects
+    value: ${{ steps.get-intersection.outputs.value }}
+  projects-json:
     description: changed projects
     value: ${{ steps.convert-to-json.outputs.value }}
 runs:
