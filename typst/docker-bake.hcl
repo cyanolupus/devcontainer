@@ -13,7 +13,7 @@ target "typst" {
   dockerfile = "Dockerfile"
   platforms = [
     "linux/amd64",
-    # "linux/arm64",
+    "linux/arm64",
   ]
   args = {
     VARIANT = item.variant

@@ -11,7 +11,7 @@ jobs:
       contents: read
     runs-on: ubuntu-latest
     outputs:
-      projects: ${{ steps.find-projects.outputs.projects }}
+      projects: ${{ steps.find-changed-projects.outputs.projects-json }}
     steps:
       - name: Check out the PR
         uses: actions/checkout@v4

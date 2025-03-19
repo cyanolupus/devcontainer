@@ -5,8 +5,11 @@ inputs:
     description: the ref
     required: true
 outputs:
-  projects:
-    description: projects
+  projects-text:
+    description: changed projects
+    value: ${{ steps.find-projects.outputs.value }}
+  projects-json:
+    description: changed projects
     value: ${{ steps.convert-to-json.outputs.value }}
 runs:
   using: composite
