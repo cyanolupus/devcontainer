@@ -11,7 +11,7 @@ jobs:
       contents: read
     runs-on: ubuntu-latest
     outputs:
-      matrix-include: ${{ steps.matrix-include.outputs.value || '[]' }}
+      matrix-include: ${{ steps.matrix-include.outputs.value }}
     steps:
       - name: Check out the PR
         uses: actions/checkout@v4
@@ -32,20 +32,24 @@ jobs:
           PROJECTS: ${{ steps.find-changed-projects.outputs.projects-text }}
         shell: /usr/bin/bash -euxo pipefail {0}
         run: |
-          printenv PROJECTS
           echo 'value<<EOF' >> $GITHUB_OUTPUT
-          while read -r LINE; do
-            pushd "${LINE}"
-            json="$(docker buildx bake --print | \
-              jq --arg project "${LINE}" '.target | to_entries | map({project: $project, target: .key, platform: .value.platforms[]})')"
+          if [[ -n "${PROJECTS}" ]]; then
+            while read -r LINE; do
+              pushd "${LINE}"
+              json="$(docker buildx bake --print | \
+                jq --arg project "${LINE}" '.target | to_entries | map({project: $project, target: .key, platform: .value.platforms[]})')"
+              echo "${json}"
+              echo "${json}" >> $GITHUB_OUTPUT
+              popd
+            done < <(printenv PROJECTS)
+          else
+            json='[]'
             echo "${json}"
             echo "${json}" >> $GITHUB_OUTPUT
-            popd
-          done < <(printenv PROJECTS)
+          fi
           echo 'EOF' >> $GITHUB_OUTPUT
 
       - name: Concatnate all matrix
-        if: ${{ steps.find-targets-and-platforms.outputs.value != '' }}
         id: matrix-include
         env:
           JSONS: ${{ steps.find-targets-and-platforms.outputs.value }}
@@ -56,7 +60,7 @@ jobs:
           echo "${json}"
           echo "${json}" >> $GITHUB_OUTPUT
           echo 'EOF' >> $GITHUB_OUTPUT
- 
+
   bake:
     permissions:
       contents: read

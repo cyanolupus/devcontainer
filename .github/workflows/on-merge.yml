@@ -11,7 +11,7 @@ jobs:
       contents: read
     runs-on: ubuntu-latest
     outputs:
-      projects: ${{ steps.find-changed-projects.outputs.projects-json }}
+      matrix-include: ${{ steps.matrix-include.outputs.value }}
     steps:
       - name: Check out the PR
         uses: actions/checkout@v4
@@ -22,18 +22,56 @@ jobs:
         with:
           ref: ${{ github.sha }}
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Find bake targets and platforms
+        id: find-targets-and-platforms
+        env:
+          PROJECTS: ${{ steps.find-projects.outputs.projects-text }}
+        shell: /usr/bin/bash -euxo pipefail {0}
+        run: |
+          echo 'value<<EOF' >> $GITHUB_OUTPUT
+          if [[ -n "${PROJECTS}" ]]; then
+            while read -r LINE; do
+              pushd "${LINE}"
+              json="$(docker buildx bake --print | \
+                jq --arg project "${LINE}" '.target | to_entries | map({project: $project, target: .key, platform: .value.platforms[]})')"
+              echo "${json}"
+              echo "${json}" >> $GITHUB_OUTPUT
+              popd
+            done < <(printenv PROJECTS)
+          else
+            json='[]'
+            echo "${json}"
+            echo "${json}" >> $GITHUB_OUTPUT
+          fi
+          echo 'EOF' >> $GITHUB_OUTPUT
+
+      - name: Concatnate all matrix
+        id: matrix-include
+        env:
+          JSONS: ${{ steps.find-targets-and-platforms.outputs.value }}
+        shell: /usr/bin/bash -euo pipefail {0}
+        run: |
+          json="$(echo "${JSONS}" | jq -s '. | flatten')"
+          echo 'value<<EOF' >> $GITHUB_OUTPUT
+          echo "${json}"
+          echo "${json}" >> $GITHUB_OUTPUT
+          echo 'EOF' >> $GITHUB_OUTPUT
+
   bake:
     permissions:
       contents: read
       packages: write
-    runs-on: ubuntu-latest
     needs: [find-projects]
     # Handle empty needs to resolve ` Matrix vector 'project' does not contain any values` error
-    if: ${{ needs.find-projects.outputs.projects != '[]' }}
+    if: ${{ needs.find-projects.outputs.matrix-include != '[]' }}
     strategy:
       fail-fast: false
       matrix:
-        project: ${{ fromJson(needs.find-projects.outputs.projects) }}
+        include: ${{ fromJson(needs.find-projects.outputs.matrix-include) }}
+    runs-on: ${{ matrix.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     steps:
       - name: Check out the PR
         uses: actions/checkout@v4
@@ -46,7 +84,7 @@ jobs:
             typst-target
             typstyle-target
             cargo-registry
-          key: cache-${{ hashFiles(format('{0}/{1}', matrix.project, 'Dockerfile')) }}
+          key: ${{ matrix.platform }}-${{ matrix.project }}-${{ matrix.target }}-${{ hashFiles(format('{0}/{1}', matrix.project, 'Dockerfile')) }}
 
       - name: Inject cache into docker
         uses: reproducible-containers/buildkit-cache-dance@v3.1.0
@@ -73,15 +111,18 @@ jobs:
         uses: docker/bake-action@v6
         with:
           workdir: ${{ matrix.project }}
+          targets: ${{ matrix.target }}
           source: .
           push: true
+          set: |
+            *.platform=${{ matrix.platform }}
 
   # A job that summarizes the results of `plan` jobs for required status checks.
   all-bake:
     permissions: {}
     runs-on: ubuntu-latest
     needs: [find-projects, bake]
-    if: ${{ success() || (needs.find-projects.result == 'success' && needs.find-projects.outputs.projects == '[]') }}
+    if: ${{ success() || (needs.find-projects.result == 'success' && needs.find-projects.outputs.matrix-include == '[]') }}
     steps:
       - name: Null Step
         run: |
