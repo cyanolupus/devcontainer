@@ -131,7 +131,7 @@ jobs:
           push: false
           set: |
             *.platform=${{ matrix.platform }}
-            *.tags=[]
+            *.tags=
             *.output=type=registry,name=${{ steps.image-name.outputs.value }},push-by-digest=true
 
       - name: Push manifests
