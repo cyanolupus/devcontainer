@@ -144,7 +144,7 @@ jobs:
         run: |
           image_digest="$(echo "${METADATA}" | jq -r '.db."containerimage.digest"')"
           tag_args="$(docker buildx bake --print  | jq -r ".target[\"${TARGET}\"].tags | map(\"-t \" + .) | join(\" \")")"
-          docker buildx imagetools create --apend ${tag_args} "${IMAGE_NAME}:${image_digest}"
+          docker buildx imagetools create --append ${tag_args} "${IMAGE_NAME}:${image_digest}"
 
   # A job that summarizes the results of `plan` jobs for required status checks.
   all-bake:
