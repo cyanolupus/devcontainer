@@ -142,6 +142,8 @@ jobs:
         shell: /usr/bin/bash -euo pipefail {0}
         working-directory: ${{ matrix.project }}
         run: |
+          echo "${METADATA}"
+          echo "${METADATA}" | jq -r '.db."containerimage.digest"'
           image_digest="$(echo "${METADATA}" | jq -r '.db."containerimage.digest"')"
           tag_args="$(docker buildx bake --print  | jq -r ".target[\"${TARGET}\"].tags | map(\"-t \" + .) | join(\" \")")"
           docker buildx imagetools create --append ${tag_args} "${IMAGE_NAME}:${image_digest}"
