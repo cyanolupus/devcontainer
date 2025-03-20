@@ -112,6 +112,7 @@ jobs:
         env:
           TARGET: ${{ matrix.target }}
         shell: /usr/bin/bash -euo pipefail {0}
+        working-directory: ${{ matrix.project }}
         run: |
           tags="$(docker buildx bake --print  | jq -r ".target[\"${TARGET}\"].tags[]")"
           image_name="$(echo "${tags}" | sed 's/:.*$//' | uniq)"
@@ -138,6 +139,7 @@ jobs:
           METADATA: ${{ steps.bake.outputs.metadata }}
           IMAGE_NAME: ${{ steps.image-name.outputs.value }}
         shell: /usr/bin/bash -euo pipefail {0}
+        working-directory: ${{ matrix.project }}
         run: |
           image_digest="$(echo "${METADATA}" | jq -r '.db."containerimage.digest"')"
           tag_args="$(docker buildx bake --print  | jq -r ".target[\"${TARGET}\"].tags | map(\"-t \" + .) | join(\" \")")"
