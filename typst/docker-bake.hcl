@@ -21,18 +21,18 @@ target "typst" {
     TYPSTYLE_VERSION = "v${item.typstyle}"
   }
   tags = [
-    "ghcr.io/amakubo/devcontainers/typst:${item.typst}",
+    "ghcr.io/cyanolupus/devcontainers/typst:${item.typst}",
   ]
   cache-from = [
     {
       type = "registry",
-      ref = "ghcr.io/amakubo/devcontainers/typst:cache",
+      ref = "ghcr.io/cyanolupus/devcontainers/typst:cache",
     }
   ]
   cache-to = [
     {
       type = "registry",
-      ref = "ghcr.io/amakubo/devcontainers/typst:cache",
+      ref = "ghcr.io/cyanolupus/devcontainers/typst:cache",
     }
   ]
 }
